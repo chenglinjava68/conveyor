@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package com.kanven.conveyor.entity;
+
+option java_outer_classname="RowEntityProto";
+
+message RowEntity {
+
+	string db = 1;
+	
+	string table = 2;
+	
+	string primaryKey = 3;
+	
+	int32 operation = 4;
+	
+	int64 time = 5;
+	
+	map<string,string> kvs = 6 ;
+	
+}
