@@ -85,14 +85,15 @@ public class CanalCollector implements Collector, Runnable {
 			if (entries == null || entries.size() == 0) {
 				continue;
 			}
+			List<RowEntity> res = new LinkedList<RowEntity>();
 			for (Entry entry : entries) {
 				EntryType type = entry.getEntryType();
 				if (type != EntryType.ROWDATA) {
 					continue;
 				}
-				List<RowEntity> res = parseEntry(entry);
-				sender.send(res);
+				res.addAll(parseEntry(entry));
 			}
+			sender.send(res);
 			try {
 				connector.ack(id);
 				if (log.isInfoEnabled()) {
@@ -163,8 +164,12 @@ public class CanalCollector implements Collector, Runnable {
 				return;
 			}
 			this.status = Status.CLOSED;
+			try {
+				this.connector.disconnect();
+			} catch (Exception e) {
+				log.error("canal连接关闭出现异常！", e);
+			}
 			this.sender.close();
-			this.connector.disconnect();
 		} finally {
 			lock.unlock();
 		}

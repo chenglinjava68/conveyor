@@ -68,6 +68,15 @@ public class KafkaSender implements Sender {
 	}
 
 	public void close() {
+		while (callbacks.size() > 0) {
+			if (log.isWarnEnabled()) {
+				log.warn("还有（" + callbacks.size() + "）消息没有发送！");
+			}
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+			}
+		}
 		producer.close();
 	}
 
