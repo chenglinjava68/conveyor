@@ -91,9 +91,7 @@ public class CanalCollector implements Collector, Runnable {
 					continue;
 				}
 				List<RowEntity> res = parseEntry(entry);
-				for (RowEntity re : res) {
-					sender.send(re);
-				}
+				sender.send(res);
 			}
 			try {
 				connector.ack(id);
