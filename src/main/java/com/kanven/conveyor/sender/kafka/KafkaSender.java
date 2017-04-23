@@ -70,10 +70,6 @@ public class KafkaSender implements Sender {
 		producer.close();
 	}
 
-	interface C<T> extends Callback, Comparable<T> {
-
-	}
-
 	private class RecordCallback implements Callback, Comparable<RecordCallback> {
 
 		private RowEntity entity;
