@@ -1,9 +1,10 @@
 package com.kanven.conveyor.sender.kafka;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.Set;
 
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -28,7 +29,7 @@ public class KafkaSender implements Sender {
 
 	private static final String DEFAULT_KAFKA_CONF_PATH = "conf/kafka.properties";
 
-	private ConcurrentSkipListSet<RecordCallback> callbacks = new ConcurrentSkipListSet<RecordCallback>();
+	private Set<RecordCallback> callbacks = new HashSet<RecordCallback>();
 
 	private Producer<String, byte[]> producer;
 
@@ -70,7 +71,7 @@ public class KafkaSender implements Sender {
 		producer.close();
 	}
 
-	private class RecordCallback implements Callback, Comparable<RecordCallback> {
+	private class RecordCallback implements Callback {
 
 		private RowEntity entity;
 
@@ -102,11 +103,6 @@ public class KafkaSender implements Sender {
 		@Override
 		public int hashCode() {
 			return entity.hashCode();
-		}
-
-		@Override
-		public int compareTo(RecordCallback o) {
-			return entity.getTime() >= o.entity.getTime() ? 1 : -1;
 		}
 
 	}
