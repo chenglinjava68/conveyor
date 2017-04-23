@@ -6,7 +6,6 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -51,15 +50,13 @@ public class CanalCollector implements Collector, Runnable {
 
 	private Sender sender;
 
-	private int batch;
+	private int batch = 1000;
 
-	private long timeout;
+	private long timeout = -1;
 
 	private String regex;
 
 	private Status status;
-
-	private long batchId = -1;
 
 	private static enum Status {
 		STARTED, RUNNING, STOPED, EXCEPTION, CLOSED
@@ -73,15 +70,17 @@ public class CanalCollector implements Collector, Runnable {
 
 	public void run() {
 		while (status == Status.RUNNING) {
-			if (!connector.checkValid()) {
-				connector.connect();
+			Message message = null;
+			try {
+				message = connector.getWithoutAck(batch, timeout, TimeUnit.MILLISECONDS);
+			} catch (CanalClientException e) {
+				log.error("canal获取消息失败！", e);
+				// TODO
 			}
-			Message message = connector.getWithoutAck(batch, timeout, TimeUnit.MILLISECONDS);
 			long id = message.getId();
 			if (id <= 0) {
 				continue;
 			}
-			batchId = id; // 关闭、异常回滚使用，避免数据丢失但是有重复数据
 			List<Entry> entries = message.getEntries();
 			if (entries == null || entries.size() == 0) {
 				continue;
@@ -96,7 +95,15 @@ public class CanalCollector implements Collector, Runnable {
 					sender.send(re);
 				}
 			}
-			connector.ack(id);
+			try {
+				connector.ack(id);
+				if (log.isInfoEnabled()) {
+					log.info("消息确认，id：" + id);
+				}
+			} catch (CanalClientException e) {
+				log.error("canal消息确认失败！", e);
+				// TODO
+			}
 		}
 	}
 
@@ -120,7 +127,7 @@ public class CanalCollector implements Collector, Runnable {
 				t.setUncaughtExceptionHandler(new UncaughtExceptionMonitor());
 				t.start();
 				if (log.isInfoEnabled()) {
-					log.info("收集器启动完成！");
+					log.info("收集器启动完成，状态为：" + status);
 				}
 			} else if (status == Status.STOPED) {
 				this.connector.subscribe(regex);
@@ -140,8 +147,8 @@ public class CanalCollector implements Collector, Runnable {
 		lock.lock();
 		try {
 			if (status == Status.RUNNING) {
-				this.connector.unsubscribe();
 				this.status = Status.STOPED;
+				this.connector.unsubscribe();
 			}
 		} finally {
 			lock.unlock();
@@ -159,7 +166,6 @@ public class CanalCollector implements Collector, Runnable {
 			}
 			this.status = Status.CLOSED;
 			this.sender.close();
-			this.connector.rollback(batchId);
 			this.connector.disconnect();
 		} finally {
 			lock.unlock();
@@ -259,10 +265,9 @@ public class CanalCollector implements Collector, Runnable {
 		builder.setDb(header.getSchemaName());
 		builder.setTable(header.getTableName());
 		builder.setTime(header.getExecuteTime());
-		Map<String, String> kvs = builder.getKvsMap();
 		for (Column column : columns) {
 			String value = column.getValue();
-			kvs.put(column.getName(), value);
+			builder.putKvs(column.getName(), value);
 			if (column.getIsKey()) {
 				builder.setPrimaryKey(value);
 			}
@@ -275,21 +280,16 @@ public class CanalCollector implements Collector, Runnable {
 			log.error(t.getName() + ",收集器出现未知异常！", e);
 			status = Status.EXCEPTION;
 			try {
-				if (!(e instanceof CanalClientException)) {
-					connector.rollback(batchId);
-				}
-			} finally {
-				try {
-					connector.disconnect();
-				} catch (Exception ex) {
-					log.error("canal关闭连接出现异常！", e);
-				}
-				try {
-					sender.close();
-				} catch (Exception ex) {
-					log.error("kafka关闭出现异常！", e);
-				}
+				connector.disconnect();
+			} catch (Exception ex) {
+				log.error("canal关闭连接出现异常！", e);
 			}
+			try {
+				sender.close();
+			} catch (Exception ex) {
+				log.error("kafka关闭出现异常！", e);
+			}
+			// TODO 没有暂停服务
 		}
 	}
 
