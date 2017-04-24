@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -16,16 +17,18 @@ import org.slf4j.LoggerFactory;
 
 import com.kanven.conveyor.entity.RowEntityProto.RowEntity;
 import com.kanven.conveyor.sender.Sender;
+import com.kanven.conveyor.utils.Ping;
 import com.kanven.conveyor.utils.PropertiesLoader;
 
 /**
  * 
  * @author kanven
- *
+ * 
  */
 public class KafkaSender implements Sender {
 
-	private static final Logger log = LoggerFactory.getLogger(KafkaSender.class);
+	private static final Logger log = LoggerFactory
+			.getLogger(KafkaSender.class);
 
 	private static final String DEFAULT_KAFKA_CONF_PATH = "conf/kafka.properties";
 
@@ -37,7 +40,13 @@ public class KafkaSender implements Sender {
 
 	public KafkaSender(String topic) throws IOException {
 		this.topic = topic;
-		this.producer = new KafkaProducer<String, byte[]>(PropertiesLoader.loadProperties(DEFAULT_KAFKA_CONF_PATH));
+		Properties properties = PropertiesLoader
+				.loadProperties(DEFAULT_KAFKA_CONF_PATH);
+		String address = properties.getProperty("bootstrap.servers");
+		if (!ping(address)) {
+			throw new RuntimeException("kafka无法连接,请检查地址(" + address + ")是否有效!");
+		}
+		this.producer = new KafkaProducer<String, byte[]>(properties);
 	}
 
 	public KafkaSender(String topic, Properties properties) {
@@ -46,7 +55,8 @@ public class KafkaSender implements Sender {
 	}
 
 	public void send(RowEntity entity) {
-		ProducerRecord<String, byte[]> record = new ProducerRecord<String, byte[]>(topic, entity.toByteArray());
+		ProducerRecord<String, byte[]> record = new ProducerRecord<String, byte[]>(
+				topic, entity.toByteArray());
 		try {
 			producer.send(record, new RecordCallback(entity));
 			if (log.isInfoEnabled()) {
@@ -77,6 +87,32 @@ public class KafkaSender implements Sender {
 			}
 		}
 		producer.close();
+	}
+	
+	private boolean ping(String address) {
+		if (StringUtils.isBlank(address)) {
+			return false;
+		}
+		try {
+			String[] hosts = address.split(",");
+			for (String host : hosts) {
+				String[] items = host.split(":");
+				if (items == null || items.length != 2) {
+					log.error("host地址(" + host + ")不合法！");
+					return false;
+				}
+				String h = items[0];
+				int port = Integer.parseInt(items[1]);
+				boolean flag = Ping.ping(h, port);
+				if (!flag) {
+					return false;
+				}
+			}
+			return true;
+		} catch (Exception e) {
+			log.error("ping操作出现异常！", e);
+			return false;
+		}
 	}
 
 	private class RecordCallback implements Callback {
