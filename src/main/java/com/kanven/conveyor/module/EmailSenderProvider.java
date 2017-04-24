@@ -33,7 +33,6 @@ public class EmailSenderProvider implements Provider<EmailSender> {
 		sender = new EmailSender(protocol, host, user, password, ids);
 	}
 
-	@Override
 	public EmailSender get() {
 		return sender;
 	}

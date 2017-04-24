@@ -11,8 +11,8 @@ import com.kanven.conveyor.collector.Collector;
 import com.kanven.conveyor.monitor.EmailSender;
 import com.kanven.conveyor.sender.Sender;
 import com.kanven.conveyor.sender.kafka.KafkaSender;
+import com.kanven.conveyor.server.ConveyorServer;
 import com.kanven.conveyor.server.Server;
-import com.kanven.conveyor.utils.ConveyorServer;
 import com.kanven.conveyor.zk.Register;
 import com.kanven.conveyor.zk.ZookeeperRegister;
 

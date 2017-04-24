@@ -57,7 +57,6 @@ public class KafkaSender implements Sender {
 		}
 	}
 
-	@Override
 	public void send(List<RowEntity> entities) {
 		if (entities == null || entities.size() == 0) {
 			return;
@@ -89,7 +88,6 @@ public class KafkaSender implements Sender {
 			callbacks.add(this);
 		}
 
-		@Override
 		public void onCompletion(RecordMetadata metadata, Exception exception) {
 			if (metadata == null) {
 				log.error("消息发送失败,消息体：" + entity, exception);

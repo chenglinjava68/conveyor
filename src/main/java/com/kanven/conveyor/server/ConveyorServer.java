@@ -1,4 +1,4 @@
-package com.kanven.conveyor.utils;
+package com.kanven.conveyor.server;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.inject.Inject;
 import com.kanven.conveyor.collector.Collector;
-import com.kanven.conveyor.server.Server;
+import com.kanven.conveyor.utils.PropertiesLoader;
 import com.kanven.conveyor.zk.Event;
 import com.kanven.conveyor.zk.Register;
 import com.kanven.conveyor.zk.ServerListener;
