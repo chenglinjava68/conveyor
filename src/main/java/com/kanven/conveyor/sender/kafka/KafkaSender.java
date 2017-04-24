@@ -1,10 +1,10 @@
 package com.kanven.conveyor.sender.kafka;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.producer.Callback;
@@ -32,7 +32,7 @@ public class KafkaSender implements Sender {
 
 	private static final String DEFAULT_KAFKA_CONF_PATH = "conf/kafka.properties";
 
-	private Set<RecordCallback> callbacks = new HashSet<RecordCallback>();
+	private Set<RecordCallback> callbacks = new ConcurrentSkipListSet<RecordCallback>();
 
 	private Producer<String, byte[]> producer;
 
@@ -88,7 +88,7 @@ public class KafkaSender implements Sender {
 		}
 		producer.close();
 	}
-	
+
 	private boolean ping(String address) {
 		if (StringUtils.isBlank(address)) {
 			return false;
@@ -115,7 +115,8 @@ public class KafkaSender implements Sender {
 		}
 	}
 
-	private class RecordCallback implements Callback {
+	private class RecordCallback implements Callback,
+			Comparable<RecordCallback> {
 
 		private RowEntity entity;
 
@@ -146,6 +147,10 @@ public class KafkaSender implements Sender {
 		@Override
 		public int hashCode() {
 			return entity.hashCode();
+		}
+
+		public int compareTo(RecordCallback callback) {
+			return this.entity.getTime() >= callback.entity.getTime() ? 1 : -1;
 		}
 
 	}
