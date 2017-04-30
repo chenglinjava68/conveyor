@@ -1,20 +1,23 @@
 package com.kanven.conveyor.sender;
 
-import java.util.List;
-
-import com.kanven.conveyor.entity.RowEntityProto.RowEntity;
+import com.kanven.conveyor.collector.Observer;
+import com.kanven.conveyor.entity.RecordProto.Record;
 
 /**
  * 
  * @author kanven
  *
  */
-public interface Sender {
+public interface Sender<T> {
 	
-	void send(RowEntity entity);
+	void attach(Observer<T> observer);
 	
-	void send(List<RowEntity> entities);
+	void detach(Observer<T> observer);
 	
+	void notify(T subject);
+
+	void send(Record record);
+
 	void close();
-	
+
 }

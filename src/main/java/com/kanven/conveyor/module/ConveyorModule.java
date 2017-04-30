@@ -6,8 +6,10 @@ import org.I0Itec.zkclient.ZkClient;
 import org.apache.commons.lang3.StringUtils;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.TypeLiteral;
 import com.kanven.conveyor.collector.CanalCollector;
 import com.kanven.conveyor.collector.Collector;
+import com.kanven.conveyor.entity.RecordProto.Record;
 import com.kanven.conveyor.monitor.EmailSender;
 import com.kanven.conveyor.sender.Sender;
 import com.kanven.conveyor.sender.kafka.KafkaSender;
@@ -34,7 +36,8 @@ public class ConveyorModule extends AbstractModule {
 		bind(Server.class).to(ConveyorServer.class).asEagerSingleton();
 		bind(Collector.class).to(CanalCollector.class).asEagerSingleton();
 		try {
-			bind(Sender.class).toInstance(new KafkaSender(setting.get("conveyor.kafka.topic")));
+			bind(new TypeLiteral<Sender<Record>>() {
+			}).toInstance(new KafkaSender(setting.get("conveyor.kafka.topic")));
 		} catch (IOException e) {
 			throw new RuntimeException("kafka初始化失败！", e);
 		}

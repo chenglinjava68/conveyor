@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package com.kanven.conveyor.entity;
+
+option java_outer_classname="RecordProto";
+
+message Record {
+
+	int64 batchId = 1;
+	
+	repeated bytes entities = 2;
+}

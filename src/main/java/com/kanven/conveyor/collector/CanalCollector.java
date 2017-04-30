@@ -3,8 +3,8 @@ package com.kanven.conveyor.collector;
 import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.net.InetSocketAddress;
+import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -28,6 +28,7 @@ import com.alibaba.otter.canal.protocol.Message;
 import com.alibaba.otter.canal.protocol.exception.CanalClientException;
 import com.google.inject.Inject;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.kanven.conveyor.entity.RecordProto.Record;
 import com.kanven.conveyor.entity.RowEntityProto.RowEntity;
 import com.kanven.conveyor.entity.RowEntityProto.RowEntity.Builder;
 import com.kanven.conveyor.sender.Sender;
@@ -38,7 +39,7 @@ import com.kanven.conveyor.utils.PropertiesLoader;
  * @author kanven
  *
  */
-public class CanalCollector implements Collector, Runnable {
+public class CanalCollector implements Collector, Observer<Record>, Runnable {
 
 	private static final Logger log = LoggerFactory.getLogger(CanalCollector.class);
 
@@ -48,7 +49,7 @@ public class CanalCollector implements Collector, Runnable {
 
 	private CanalConnector connector;
 
-	private Sender sender;
+	private Sender<Record> sender;
 
 	private int batch = 1000;
 
@@ -63,8 +64,9 @@ public class CanalCollector implements Collector, Runnable {
 	}
 
 	@Inject
-	public CanalCollector(Sender sender) throws IOException {
+	public CanalCollector(Sender<Record> sender) throws IOException {
 		this.sender = sender;
+		this.sender.attach(this);
 		init();
 	}
 
@@ -85,24 +87,16 @@ public class CanalCollector implements Collector, Runnable {
 			if (entries == null || entries.size() == 0) {
 				continue;
 			}
-			List<RowEntity> res = new LinkedList<RowEntity>();
+			Record.Builder builder = Record.newBuilder();
+			builder.setBatchId(id);
 			for (Entry entry : entries) {
 				EntryType type = entry.getEntryType();
 				if (type != EntryType.ROWDATA) {
 					continue;
 				}
-				res.addAll(parseEntry(entry));
+				parseEntry(entry, builder);
 			}
-			sender.send(res);
-			try {
-				connector.ack(id);
-				if (log.isInfoEnabled()) {
-					log.info("消息确认，id：" + id);
-				}
-			} catch (CanalClientException e) {
-				log.error("canal消息确认失败！", e);
-				// TODO
-			}
+			sender.send(builder.build());
 		}
 	}
 
@@ -235,8 +229,7 @@ public class CanalCollector implements Collector, Runnable {
 		return isas;
 	}
 
-	private List<RowEntity> parseEntry(Entry entry) {
-		List<RowEntity> entities = new LinkedList<RowEntity>();
+	private void parseEntry(Entry entry, Record.Builder builder) {
 		Header header = entry.getHeader();
 		try {
 			RowChange rc = RowChange.parseFrom(entry.getStoreValue());
@@ -246,12 +239,14 @@ public class CanalCollector implements Collector, Runnable {
 			case UPDATE:
 			case INSERT:
 				for (RowData rd : rds) {
-					entities.add(parseRow(header, rd.getAfterColumnsList()));
+					RowEntity entity = parseRow(header, rd.getAfterColumnsList());
+					builder.addEntities(entity.toByteString());
 				}
 				break;
 			case DELETE:
 				for (RowData rd : rds) {
-					entities.add(parseRow(header, rd.getBeforeColumnsList()));
+					RowEntity entity = parseRow(header, rd.getBeforeColumnsList());
+					builder.addEntities(entity.toByteString());
 				}
 				break;
 			default:
@@ -260,7 +255,6 @@ public class CanalCollector implements Collector, Runnable {
 		} catch (InvalidProtocolBufferException e) {
 			e.printStackTrace();
 		}
-		return entities;
 	}
 
 	private RowEntity parseRow(Header header, List<Column> columns) {
@@ -280,7 +274,7 @@ public class CanalCollector implements Collector, Runnable {
 
 	private class UncaughtExceptionMonitor implements UncaughtExceptionHandler {
 		public void uncaughtException(Thread t, Throwable e) {
-			log.error(t.getName() + ",收集器出现未知异常！", e);
+			log.error(MessageFormat.format("线程（{}）,收集器出现未知异常！", t.getName()), e);
 			status = Status.EXCEPTION;
 			try {
 				connector.disconnect();
@@ -288,11 +282,27 @@ public class CanalCollector implements Collector, Runnable {
 				log.error("canal关闭连接出现异常！", e);
 			}
 			try {
-				sender.close();
+				// TODO
+				close();
 			} catch (Exception ex) {
-				log.error("kafka关闭出现异常！", e);
+				log.error("服务关闭出现异常！", e);
 			}
-			// TODO 没有暂停服务
+		}
+	}
+
+	public void observe(Record record) {
+		long batchId = record.getBatchId();
+		if (batchId > 0) {
+			try {
+				connector.ack(batchId);
+				if (log.isInfoEnabled()) {
+					log.info("消息确认，id：" + batchId);
+				}
+				// TODO ZooKeeper存储当前确认序号
+			} catch (CanalClientException e) {
+				log.error(MessageFormat.format("{}编号消息ack失败！", batchId), e);
+				// TODO
+			}
 		}
 	}
 
