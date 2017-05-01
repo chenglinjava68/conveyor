@@ -50,7 +50,7 @@ public class KafkaSender implements Sender<Record> {
 		Properties properties = PropertiesLoader.loadProperties(DEFAULT_KAFKA_CONF_PATH);
 		String address = properties.getProperty("bootstrap.servers");
 		if (!ping(address)) {
-			throw new RuntimeException("kafka无法连接,请检查地址(" + address + ")是否有效!");
+			throw new RuntimeException(MessageFormat.format("kafka无法连接,请检查地址({0})是否有效!", address));
 		}
 		this.producer = new KafkaProducer<String, byte[]>(properties);
 	}
@@ -65,10 +65,10 @@ public class KafkaSender implements Sender<Record> {
 		try {
 			producer.send(message, new RecordCallback(record));
 			if (log.isInfoEnabled()) {
-				log.info("消息体：" + record.toString());
+				log.info(MessageFormat.format("消息体：{0}", record));
 			}
 		} catch (Throwable t) {
-			String msg = MessageFormat.format("{},消息发送失败!", record.toString());
+			String msg = MessageFormat.format("{0},消息发送失败!", record.toString());
 			log.error(msg, t);
 			monitor.error(msg);
 		}
@@ -77,7 +77,7 @@ public class KafkaSender implements Sender<Record> {
 	public void close() {
 		while (callbacks.size() > 0) {
 			if (log.isWarnEnabled()) {
-				log.warn("还有（" + callbacks.size() + "）消息没有发送！");
+				log.warn(MessageFormat.format("还有（{0}）消息没有发送！", callbacks.size()));
 				for (RecordCallback callback : callbacks) {
 					log.warn(callback.record.toString());
 				}
@@ -100,7 +100,7 @@ public class KafkaSender implements Sender<Record> {
 			for (String host : hosts) {
 				String[] items = host.split(":");
 				if (items == null || items.length != 2) {
-					log.error("host地址(" + host + ")不合法！");
+					log.error(MessageFormat.format("host地址({0})不合法！", host));
 					return false;
 				}
 				String h = items[0];
@@ -128,10 +128,10 @@ public class KafkaSender implements Sender<Record> {
 
 		public void onCompletion(RecordMetadata metadata, Exception exception) {
 			if (metadata == null) {
-				log.error("消息发送失败,消息体：" + record.toString(), exception);
+				log.error(MessageFormat.format("消息发送失败,消息体：{0}", record), exception);
 			} else {
 				if (log.isDebugEnabled()) {
-					log.debug("消息发送成功,消息体:" + record.toString());
+					log.debug(MessageFormat.format("消息发送成功,消息体:{0}", record));
 				}
 			}
 			KafkaSender.this.notify(record);

@@ -1,6 +1,7 @@
 package com.kanven.conveyor.server;
 
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -94,7 +95,7 @@ public class ConveyorServer implements Server, ServerListener {
 		if (event.getParent().equals(path)) {
 			this.seq = event.getSeq();
 			if (log.isInfoEnabled()) {
-				log.info("服务序号为：" + this.seq);
+				log.info(MessageFormat.format("服务序号为：{0}", this.seq));
 			}
 		}
 	}

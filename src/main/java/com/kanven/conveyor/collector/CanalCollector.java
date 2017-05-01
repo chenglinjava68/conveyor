@@ -214,22 +214,22 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 				continue;
 			}
 			if (!addr.contains(":")) {
-				log.error(addr + "地址不合法！");
+				log.error(MessageFormat.format("{0},地址不合法！", addr));
 				continue;
 			}
 			String[] items = addr.split(":");
 			if (items.length > 2) {
-				log.error(addr + "地址不合法！");
+				log.error(MessageFormat.format("{0},地址不合法！", addr));
 				continue;
 			}
 			String ip = items[0];
 			String port = items[1];
 			if (StringUtils.isBlank(ip)) {
-				log.error(addr + "地址不合法！");
+				log.error(MessageFormat.format("{0},地址不合法！", addr));
 				continue;
 			}
 			if (StringUtils.isBlank(port)) {
-				log.error(addr + "地址不合法！");
+				log.error(MessageFormat.format("{0},地址不合法！", addr));
 				continue;
 			}
 			InetSocketAddress isa = new InetSocketAddress(ip, Integer.parseInt(port));
@@ -284,7 +284,7 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 	private class UncaughtExceptionMonitor implements UncaughtExceptionHandler {
 		public void uncaughtException(Thread t, Throwable e) {
 			status = Status.EXCEPTION;
-			String message = MessageFormat.format("线程（{}）,收集器出现未知异常！", t.getName());
+			String message = MessageFormat.format("线程（{0}）,收集器出现未知异常！", t.getName());
 			log.error(message, e);
 			try {
 				connector.disconnect();
@@ -307,11 +307,11 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 			try {
 				connector.ack(batchId);
 				if (log.isInfoEnabled()) {
-					log.info(MessageFormat.format("消息({})确认成功！", batchId));
+					log.info(MessageFormat.format("消息({0})确认成功！", batchId));
 				}
 				// TODO ZooKeeper存储当前确认序号
 			} catch (CanalClientException e) {
-				String message = MessageFormat.format("{}编号消息ack失败,记录为：{}", batchId, record.toString());
+				String message = MessageFormat.format("{0}编号消息ack失败,记录为：{1}", batchId, record.toString());
 				log.error(message, e);
 				monitor.error(message);
 			}
