@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import com.alibaba.otter.canal.client.CanalConnector;
 import com.alibaba.otter.canal.client.CanalConnectors;
+import com.alibaba.otter.canal.client.impl.SimpleCanalConnector;
 import com.alibaba.otter.canal.protocol.CanalEntry.Column;
 import com.alibaba.otter.canal.protocol.CanalEntry.Entry;
 import com.alibaba.otter.canal.protocol.CanalEntry.EntryType;
@@ -60,6 +61,8 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 
 	private Status status;
 
+	private int retry = 6;
+
 	@Inject
 	private Monitor monitor;
 
@@ -74,18 +77,37 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 		init();
 	}
 
-	public void run() {
-		while (status == Status.RUNNING) {
-			Message message = null;
+	private Message fetchMessage() {
+		int times = 0;
+		Message message = null;
+		while (times <= retry) {
 			try {
 				message = connector.getWithoutAck(batch, timeout, TimeUnit.MILLISECONDS);
+				break;
 			} catch (CanalClientException e) {
 				log.error("canal获取消息失败！", e);
 				monitor.error("canal获取数据失败！");
+				times++;
 				try {
-					Thread.sleep(3000);
+					Thread.sleep(3000 * times);
 				} catch (InterruptedException ex) {
 				}
+				if (connector instanceof SimpleCanalConnector) {// simple模式兼容
+					try {
+						connector.disconnect();
+						connector.connect();
+					} catch (Exception ex) {
+					}
+				}
+			}
+		}
+		return message;
+	}
+
+	public void run() {
+		while (status == Status.RUNNING) {
+			Message message = fetchMessage();
+			if (message == null) {
 				continue;
 			}
 			long id = message.getId();

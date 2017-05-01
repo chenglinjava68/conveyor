@@ -25,7 +25,7 @@ public class ConveyorMonitor implements Monitor {
 	@Override
 	public void error(String message) {
 		try {
-			String content = MessageFormat.format("IP地址：{0}\r\n;消息体:{1}", NetworkUtils.getHostAddress().getHostAddress(),
+			String content = MessageFormat.format("IP地址：{0};\r\n消息体:{1}", NetworkUtils.getHostAddress().getHostAddress(),
 					message);
 			report.send("【CONVEYOR】数据同异常报警", content);
 		} catch (UnsupportedEncodingException e) {
