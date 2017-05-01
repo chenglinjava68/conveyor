@@ -14,16 +14,19 @@ import javax.mail.internet.MimeMessage;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.google.inject.name.Named;
+
 /**
  * 邮件发送
  * 
  * @author kanven
  *
  */
-public class EmailSender {
+public class EmailReport implements Report {
 
 	private static final String DEFAULT_CHARSET = "UTF-8";
 
+	@Named("conveyor.mail.protocol")
 	private String protocol;
 
 	private String host;
@@ -40,14 +43,8 @@ public class EmailSender {
 
 	private List<InternetAddress> addresses;
 
-	public EmailSender(String protocol, String host, String user, List<InternetAddress> addresses)
+	public EmailReport(String protocol, String host, String user, String password, List<InternetAddress> addresses)
 			throws NoSuchProviderException {
-		this(protocol, host, user, null, addresses);
-	}
-
-	public EmailSender(String protocol, String host, String user, String password, List<InternetAddress> addresses)
-			throws NoSuchProviderException {
-		check();
 		this.protocol = protocol;
 		this.host = host;
 		this.user = user;
@@ -77,6 +74,7 @@ public class EmailSender {
 	}
 
 	private void init() throws NoSuchProviderException {
+		check();
 		Properties props = new Properties();
 		props.setProperty("mail.transport.protocol", protocol);
 		props.setProperty("mail.smtp.host", host);

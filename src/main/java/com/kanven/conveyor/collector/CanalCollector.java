@@ -31,6 +31,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.kanven.conveyor.entity.RecordProto.Record;
 import com.kanven.conveyor.entity.RowEntityProto.RowEntity;
 import com.kanven.conveyor.entity.RowEntityProto.RowEntity.Builder;
+import com.kanven.conveyor.monitor.Monitor;
 import com.kanven.conveyor.sender.Sender;
 import com.kanven.conveyor.utils.PropertiesLoader;
 
@@ -59,6 +60,9 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 
 	private Status status;
 
+	@Inject
+	private Monitor monitor;
+
 	private static enum Status {
 		STARTED, RUNNING, STOPED, EXCEPTION, CLOSED
 	}
@@ -77,7 +81,12 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 				message = connector.getWithoutAck(batch, timeout, TimeUnit.MILLISECONDS);
 			} catch (CanalClientException e) {
 				log.error("canal获取消息失败！", e);
-				// TODO
+				monitor.error("canal获取数据失败！");
+				try {
+					Thread.sleep(3000);
+				} catch (InterruptedException ex) {
+				}
+				continue;
 			}
 			long id = message.getId();
 			if (id <= 0) {
@@ -274,8 +283,9 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 
 	private class UncaughtExceptionMonitor implements UncaughtExceptionHandler {
 		public void uncaughtException(Thread t, Throwable e) {
-			log.error(MessageFormat.format("线程（{}）,收集器出现未知异常！", t.getName()), e);
 			status = Status.EXCEPTION;
+			String message = MessageFormat.format("线程（{}）,收集器出现未知异常！", t.getName());
+			log.error(message, e);
 			try {
 				connector.disconnect();
 			} catch (Exception ex) {
@@ -287,6 +297,7 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 			} catch (Exception ex) {
 				log.error("服务关闭出现异常！", e);
 			}
+			monitor.error(message);
 		}
 	}
 
@@ -296,12 +307,13 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 			try {
 				connector.ack(batchId);
 				if (log.isInfoEnabled()) {
-					log.info("消息确认，id：" + batchId);
+					log.info(MessageFormat.format("消息({})确认成功！", batchId));
 				}
 				// TODO ZooKeeper存储当前确认序号
 			} catch (CanalClientException e) {
-				log.error(MessageFormat.format("{}编号消息ack失败！", batchId), e);
-				// TODO
+				String message = MessageFormat.format("{}编号消息ack失败,记录为：{}", batchId, record.toString());
+				log.error(message, e);
+				monitor.error(message);
 			}
 		}
 	}

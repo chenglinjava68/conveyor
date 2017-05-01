@@ -1,6 +1,7 @@
 package com.kanven.conveyor.sender.kafka;
 
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -16,8 +17,10 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.inject.Inject;
 import com.kanven.conveyor.collector.Observer;
 import com.kanven.conveyor.entity.RecordProto.Record;
+import com.kanven.conveyor.monitor.Monitor;
 import com.kanven.conveyor.sender.Sender;
 import com.kanven.conveyor.utils.Ping;
 import com.kanven.conveyor.utils.PropertiesLoader;
@@ -38,6 +41,9 @@ public class KafkaSender implements Sender<Record> {
 	private Producer<String, byte[]> producer;
 
 	private String topic;
+
+	@Inject
+	private Monitor monitor;
 
 	public KafkaSender(String topic) throws IOException {
 		this.topic = topic;
@@ -62,7 +68,9 @@ public class KafkaSender implements Sender<Record> {
 				log.info("消息体：" + record.toString());
 			}
 		} catch (Throwable t) {
-			log.error("消息发送失败！", t);
+			String msg = MessageFormat.format("{},消息发送失败!", record.toString());
+			log.error(msg, t);
+			monitor.error(msg);
 		}
 	}
 
