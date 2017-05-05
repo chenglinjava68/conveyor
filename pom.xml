@@ -13,6 +13,7 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<activemq.version>5.5.0</activemq.version>
+		<deploy.dir>${project.build.directory}/dest</deploy.dir>
 	</properties>
 
 	<dependencies>
@@ -81,7 +82,6 @@
 			<artifactId>javax.mail </artifactId>
 			<version>1.5.4 </version>
 		</dependency>
-
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
@@ -89,4 +89,157 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>2.4</version>
+				<configuration>
+					<source>1.7</source>
+					<target>1.7</target>
+					<encoding>UTF-8</encoding>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.4.2</version>
+				<configuration>
+					<skipTests>true</skipTests>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>2.4</version>
+				<configuration>
+					<archive>
+						<!-- 打包后不包括pom的描述文件 -->
+						<addMavenDescriptor>false</addMavenDescriptor>
+						<!-- Maven在生成jar时，并不知道这个jar是lib还是app，所以使用以下这个插件告之MAVEN这个jar为app，指定main类 -->
+						<manifest>
+							<mainClass>com.kanven.conveyor.Bootstrap</mainClass>
+						</manifest>
+					</archive>
+				</configuration>
+				<!-- 打jar包时需要把配置文件给排除在外 -->
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<!-- 考虑不要把配置文件信息打包到jar文件里,这样就可以只修改配置文件,不用修改到jar,部署时相对灵活一些 -->
+						<configuration>
+							<outputDirectory>${deploy.dir}/lib</outputDirectory>
+							<excludes>
+								<exclude>*.properties</exclude>
+								<exclude>*/*.bat</exclude>
+								<exclude>*/*.sh</exclude>
+								<exclude>*/**/*.xml</exclude>
+							</excludes>
+							<skipIfEmpty>true</skipIfEmpty>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<version>2.8</version>
+				<executions>
+					<execution>
+						<id>copy-dependencies</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${deploy.dir}/lib</outputDirectory>
+							<overWriteReleases>false</overWriteReleases>
+							<overWriteSnapshots>true</overWriteSnapshots>
+							<overWriteIfNewer>true</overWriteIfNewer>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-resources-plugin</artifactId>
+				<version>2.5</version>
+				<executions>
+					<execution>
+						<id>conf-resources</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<encoding>UTF-8</encoding>
+							<!-- 这是目标地址目录, 将编译完后的资源文件拷贝到该 目录 下 -->
+							<outputDirectory>${deploy.dir}/conf</outputDirectory>
+							<resources>
+								<resource>
+									<!-- 待拷贝的资源文件源地址 -->
+									<directory>src/main/resources/conf/</directory>
+									<!-- 可以设定拷贝规则,哪些需要操作，哪些不操作 -->
+									<includes>
+										<include>*.properties</include>
+									</includes>
+									<filtering>true</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+					<execution>
+						<id>bin-resources</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<encoding>UTF-8</encoding>
+							<!-- 这是目标地址目录, 将编译完后的资源文件拷贝到该 目录 下 -->
+							<outputDirectory>${deploy.dir}/bin</outputDirectory>
+							<resources>
+								<resource>
+									<!-- 待拷贝的资源文件源地址 -->
+									<directory>src/main/resources/bin/</directory>
+									<!-- 可以设定拷贝规则,哪些需要操作，哪些不操作 -->
+									<includes>
+										<include>*.sh</include>
+										<include>*.bat</include>
+									</includes>
+									<filtering>true</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>2.2.1</version>
+				<configuration>
+					<descriptors>
+						<descriptor>assembly.xml</descriptor>
+					</descriptors>
+					<appendAssemblyId>false</appendAssemblyId>
+				</configuration>
+				<executions>
+					<execution>
+						<id>make-package</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
 </project>
