@@ -63,6 +63,8 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 
 	private int retry = 6;
 
+	private long batchId = -1;
+
 	@Inject
 	private Monitor monitor;
 
@@ -128,6 +130,7 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 				parseEntry(entry, builder);
 			}
 			sender.send(builder.build());
+			this.batchId = id;
 		}
 	}
 
@@ -151,7 +154,7 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 				t.setUncaughtExceptionHandler(new UncaughtExceptionMonitor());
 				t.start();
 				if (log.isInfoEnabled()) {
-					log.info("收集器启动完成，状态为：" + status);
+					log.info(MessageFormat.format("收集器启动完成，状态为：{0}", status));
 				}
 			} else if (status == Status.STOPED) {
 				this.connector.subscribe(regex);
@@ -325,18 +328,19 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 
 	public void observe(Record record) {
 		long batchId = record.getBatchId();
-		if (batchId > 0) {
+		if (batchId > 0 && batchId <= this.batchId) {
 			try {
 				connector.ack(batchId);
 				if (log.isInfoEnabled()) {
 					log.info(MessageFormat.format("消息({0})确认成功！", batchId));
 				}
-				// TODO ZooKeeper存储当前确认序号
 			} catch (CanalClientException e) {
 				String message = MessageFormat.format("{0}编号消息ack失败,记录为：{1}", batchId, record.toString());
 				log.error(message, e);
 				monitor.error(message);
 			}
+		} else {
+			log.warn(MessageFormat.format("消息序号存在偏差,当前序号:{}，确认序号:{}", this.batchId, batchId));
 		}
 	}
 
