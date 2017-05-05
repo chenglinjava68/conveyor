@@ -13,8 +13,8 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
 import org.apache.commons.lang3.StringUtils;
-
-import com.google.inject.name.Named;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 邮件发送
@@ -24,9 +24,10 @@ import com.google.inject.name.Named;
  */
 public class EmailReport implements Report {
 
+	private static final Logger log = LoggerFactory.getLogger(EmailReport.class);
+
 	private static final String DEFAULT_CHARSET = "UTF-8";
 
-	@Named("conveyor.mail.protocol")
 	private String protocol;
 
 	private String host;
@@ -43,8 +44,10 @@ public class EmailReport implements Report {
 
 	private List<InternetAddress> addresses;
 
-	public EmailReport(String protocol, String host, String user, String password, List<InternetAddress> addresses)
-			throws NoSuchProviderException {
+	private boolean monitor = false;
+
+	public EmailReport(String protocol, String host, String user, String password, List<InternetAddress> addresses,
+			boolean monitor) throws NoSuchProviderException {
 		this.protocol = protocol;
 		this.host = host;
 		this.user = user;
@@ -55,7 +58,10 @@ public class EmailReport implements Report {
 			this.password = password;
 		}
 		this.addresses = addresses;
-		init();
+		this.monitor = monitor;
+		if (monitor) {
+			init();
+		}
 	}
 
 	private void check() {
@@ -82,6 +88,9 @@ public class EmailReport implements Report {
 		session = Session.getDefaultInstance(props);
 		// session.setDebug(true); // 启动调试模式
 		transport = session.getTransport();
+		if (log.isDebugEnabled()) {
+			log.debug("邮件通知服务开启...");
+		}
 	}
 
 	public void send(String topic, String content) throws UnsupportedEncodingException, MessagingException {
@@ -90,23 +99,27 @@ public class EmailReport implements Report {
 
 	public void send(String topic, String content, List<InternetAddress> addresses)
 			throws UnsupportedEncodingException, MessagingException {
-		MimeMessage message = new MimeMessage(session);
-		message.setFrom(new InternetAddress(user, user.split("@")[0], DEFAULT_CHARSET));
-		message.setRecipients(MimeMessage.RecipientType.TO, addresses.toArray(new InternetAddress[] {}));
-		message.setSubject(topic, DEFAULT_CHARSET);
-		message.setContent(content, "text/html;charset=" + DEFAULT_CHARSET);
-		message.setSentDate(new Date());
-		message.saveChanges();
-		if (auth) {
-			transport.connect(user, password);
-		} else {
-			transport.connect();
+		if (monitor) {
+			MimeMessage message = new MimeMessage(session);
+			message.setFrom(new InternetAddress(user, user.split("@")[0], DEFAULT_CHARSET));
+			message.setRecipients(MimeMessage.RecipientType.TO, addresses.toArray(new InternetAddress[] {}));
+			message.setSubject(topic, DEFAULT_CHARSET);
+			message.setContent(content, "text/html;charset=" + DEFAULT_CHARSET);
+			message.setSentDate(new Date());
+			message.saveChanges();
+			if (auth) {
+				transport.connect(user, password);
+			} else {
+				transport.connect();
+			}
+			transport.sendMessage(message, message.getAllRecipients());
 		}
-		transport.sendMessage(message, message.getAllRecipients());
 	}
 
 	public void close() throws MessagingException {
-		transport.close();
+		if (monitor) {
+			transport.close();
+		}
 	}
 
 }
