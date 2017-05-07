@@ -3,6 +3,7 @@ package com.kanven.conveyor.server;
 import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.lang3.StringUtils;
@@ -98,6 +99,11 @@ public class ConveyorServer implements Server, ServerListener {
 				log.info(MessageFormat.format("服务序号为：{0}", this.seq));
 			}
 		}
+	}
+
+	@Override
+	public void setCountDownLatch(CountDownLatch latch) {
+		collector.setCountDownLatch(latch);
 	}
 
 }

@@ -1,5 +1,7 @@
 package com.kanven.conveyor.collector;
 
+import java.util.concurrent.CountDownLatch;
+
 /**
  * 收集器
  * 
@@ -22,5 +24,7 @@ public interface Collector {
 	 * 数据收集关闭
 	 */
 	void close();
+
+	void setCountDownLatch(CountDownLatch latch);
 
 }

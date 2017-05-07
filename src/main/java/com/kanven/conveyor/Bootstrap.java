@@ -20,41 +20,59 @@ public class Bootstrap {
 
 	private static final Logger log = LoggerFactory.getLogger(Bootstrap.class);
 
-	public static void main(String[] args) {
-		final CountDownLatch latch = new CountDownLatch(1);
+	private CountDownLatch latch;
+
+	private Server server;
+
+	public Bootstrap(CountDownLatch latch) {
+		this.latch = latch;
+	}
+
+	void start() {
 		try {
 			log.info("模块初始化...");
 			Setting setting = new Setting();
 			Injector injector = Guice.createInjector(new ConveyorModule(setting));
 			log.info("模块初始化完成...");
-			final Server server = injector.getInstance(Server.class);
+			server = injector.getInstance(Server.class);
+			server.setCountDownLatch(latch);
 			log.info("服务开始启动...");
 			server.start();
 			log.info("服务完成启动...");
 			Runtime.getRuntime().addShutdownHook(new Thread("Thread-conveyor") {
 				@Override
 				public void run() {
-					try {
-						log.info("服务开始关闭...");
-						server.close();
-						log.info("服务关闭...");
-					} catch (Exception e) {
-						log.error("服务关闭出现异常！", e);
-					} finally {
-						latch.countDown();
-					}
+					latch.countDown();
 				}
 			});
-
 		} catch (Exception e) {
 			log.error("服务出现异常！", e);
 			latch.countDown();
 		}
+	}
+
+	void close() {
+		try {
+			if (server != null) {
+				log.info("服务开始关闭...");
+				server.close();
+				log.info("服务关闭...");
+			}
+		} catch (Exception e) {
+			log.error("服务关闭出现异常！", e);
+		}
+	}
+
+	public static void main(String[] args) {
+		CountDownLatch latch = new CountDownLatch(1);
+		Bootstrap bootstrap = new Bootstrap(latch);
+		bootstrap.start();
 		try {
 			latch.await();
 		} catch (InterruptedException e) {
 			log.error("服务启动失败！", e);
 		}
+		bootstrap.close();
 	}
 
 }

@@ -7,6 +7,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -116,6 +117,7 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 			if (id <= 0) {
 				continue;
 			}
+			this.batchId = id;
 			List<Entry> entries = message.getEntries();
 			if (entries == null || entries.size() == 0) {
 				continue;
@@ -130,7 +132,6 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 				parseEntry(entry, builder);
 			}
 			sender.send(builder.build());
-			this.batchId = id;
 		}
 	}
 
@@ -323,6 +324,10 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 				log.error("服务关闭出现异常！", e);
 			}
 			monitor.error(message);
+			CountDownLatch latch = CanalCollector.this.latch;
+			if (latch != null) {
+				latch.countDown();
+			}
 		}
 	}
 
@@ -340,8 +345,15 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 				monitor.error(message);
 			}
 		} else {
-			log.warn(MessageFormat.format("消息序号存在偏差,当前序号:{}，确认序号:{}", this.batchId, batchId));
+			log.warn(MessageFormat.format("消息序号存在偏差,当前序号:{0}，确认序号:{1}", this.batchId, batchId));
 		}
+	}
+
+	private CountDownLatch latch;
+
+	@Override
+	public void setCountDownLatch(CountDownLatch latch) {
+		this.latch = latch;
 	}
 
 }
