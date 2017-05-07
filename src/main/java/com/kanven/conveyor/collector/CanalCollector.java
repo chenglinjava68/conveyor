@@ -155,6 +155,7 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 				this.status = Status.RUNNING;
 				Thread t = new Thread(this, "canal-collector-thread");
 				t.setUncaughtExceptionHandler(new UncaughtExceptionMonitor());
+				t.setDaemon(true);
 				t.start();
 				if (log.isInfoEnabled()) {
 					log.info(MessageFormat.format("收集器启动完成，状态为：{0}", status));
