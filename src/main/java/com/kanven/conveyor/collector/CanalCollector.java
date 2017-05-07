@@ -34,6 +34,8 @@ import com.kanven.conveyor.entity.RecordProto.Record;
 import com.kanven.conveyor.entity.RowEntityProto.RowEntity;
 import com.kanven.conveyor.entity.RowEntityProto.RowEntity.Builder;
 import com.kanven.conveyor.monitor.Monitor;
+import com.kanven.conveyor.monitor.jmx.MBeanRegister;
+import com.kanven.conveyor.monitor.jmx.bean.CollectorBean;
 import com.kanven.conveyor.sender.Sender;
 import com.kanven.conveyor.utils.PropertiesLoader;
 
@@ -205,6 +207,8 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 	}
 
 	private void init() throws IOException {
+		CollectorBean bean = new CollectorBean(this);
+		MBeanRegister.getInstance().register(bean);
 		Properties properties = PropertiesLoader.loadProperties(DEFAULT_CANNEL_CONF_PATH);
 		String address = properties.getProperty("canal.address", "");
 		if (StringUtils.isBlank(address)) {
@@ -354,6 +358,17 @@ public class CanalCollector implements Collector, Observer<Record>, Runnable {
 	@Override
 	public void setCountDownLatch(CountDownLatch latch) {
 		this.latch = latch;
+	}
+
+	public int getStatus() {
+		if (status == null) {
+			return -1;
+		}
+		return status.ordinal();
+	}
+
+	public long getBatchId() {
+		return batchId;
 	}
 
 }
