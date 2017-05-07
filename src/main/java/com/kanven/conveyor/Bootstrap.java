@@ -42,6 +42,7 @@ public class Bootstrap {
 			Runtime.getRuntime().addShutdownHook(new Thread("Thread-conveyor") {
 				@Override
 				public void run() {
+					close();
 					latch.countDown();
 				}
 			});
