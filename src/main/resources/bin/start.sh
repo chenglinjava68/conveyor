@@ -17,7 +17,7 @@ then
    mkdir $LOG_DIR
 fi
 STD_OUT_FILE=$LOG_DIR/stdout.log
-JAVA_DATA=" -Dlog.dir=$LOG_DIR"
+JAVA_DATA=" -Dlog.dir=$LOG_DIR -Dcom.sun.management.jmxremote.port=8090 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false"
 LIB_JARS=`ls $LIB_DIR| grep .jar|awk '{print "'$LIB_DIR'/"$0}'|tr "\n" ":"`
 JAVA_MEM_OPTS=""
 BITS=`java -version 2>&1 | grep -i 64-bit`
@@ -27,9 +27,9 @@ else
     JAVA_MEM_OPTS=" -server -Xms1g -Xmx1g -XX:PermSize=128m -XX:SurvivorRatio=2 -XX:+UseParallelGC "
 fi
 echo "starting server....."
-exec $JAVA_MEM_OPTS $JAVA_MEM_OPTS -classpath $CONF_DIR:$LOG_DIR:$LIB_JARS com.kanven.conveyor.Bootstrap
+exec $JAVA_MEM_OPTS $JAVA_DATA  -classpath $CONF_DIR:$LOG_DIR:$LIB_JARS com.kanven.conveyor.Bootstrap
 if [ $?==0 ];then
-   echo "服务正常退出"
+   echo "服务正常启动"
 else
    echo "服务异常退出"
 fi
