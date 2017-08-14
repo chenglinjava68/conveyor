@@ -32,18 +32,7 @@ public class ZookeeperRegister implements Register {
 		this.client = client;
 		this.client.subscribeStateChanges(new IZkStateListener() {
 			public void handleStateChanged(KeeperState state) throws Exception {
-				if (state == KeeperState.Expired) {
-					Enumeration<String> keys = serverListeners.keys();
-					while (keys.hasMoreElements()) {
-						String key = keys.nextElement();
-						ConcurrentHashMap<ServerListener, IZkChildListener> listeners = serverListeners.get(key);
-						Enumeration<ServerListener> enumeration = listeners.keys();
-						while (enumeration.hasMoreElements()) {
-							ServerListener listener = enumeration.nextElement();
-							listener.onExpired(new Event(EventType.EXPIRED, null, key));
-						}
-					}
-				}
+
 			}
 
 			public void handleNewSession() throws Exception {
@@ -56,6 +45,7 @@ public class ZookeeperRegister implements Register {
 					boolean isMaster = isMaster(seq, key, client.getChildren(key));
 					while (sls.hasMoreElements()) {
 						ServerListener sl = sls.nextElement();
+						sl.onExpired(new Event(EventType.EXPIRED, null, key));
 						sl.onCreated(new Event(EventType.CREATED, seq, key));
 						if (isMaster) {
 							sl.onMaster(new Event(EventType.MASTER, seq, key));
