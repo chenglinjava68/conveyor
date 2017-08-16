@@ -37,20 +37,25 @@ public class ZookeeperRegister implements Register {
 
 			public void handleNewSession() throws Exception {
 				Enumeration<String> keys = serverListeners.keys();
-				while (keys.hasMoreElements()) {
-					String key = keys.nextElement();
-					ConcurrentHashMap<ServerListener, IZkChildListener> listeners = serverListeners.get(key);
-					Enumeration<ServerListener> sls = listeners.keys();
-					String seq = createNode(key);
-					boolean isMaster = isMaster(seq, key, client.getChildren(key));
-					while (sls.hasMoreElements()) {
-						ServerListener sl = sls.nextElement();
-						sl.onExpired(new Event(EventType.EXPIRED, null, key));
-						sl.onCreated(new Event(EventType.CREATED, seq, key));
-						if (isMaster) {
-							sl.onMaster(new Event(EventType.MASTER, seq, key));
+				lock.lock();
+				try {
+					while (keys.hasMoreElements()) {
+						String key = keys.nextElement();
+						ConcurrentHashMap<ServerListener, IZkChildListener> listeners = serverListeners.get(key);
+						Enumeration<ServerListener> sls = listeners.keys();
+						String seq = createNode(key);
+						boolean isMaster = isMaster(seq, key, client.getChildren(key));
+						while (sls.hasMoreElements()) {
+							ServerListener sl = sls.nextElement();
+							sl.onExpired(new Event(EventType.EXPIRED, null, key));
+							sl.onCreated(new Event(EventType.CREATED, seq, key));
+							if (isMaster) {
+								sl.onMaster(new Event(EventType.MASTER, seq, key));
+							}
 						}
 					}
+				} finally {
+					lock.unlock();
 				}
 			}
 		});
@@ -68,33 +73,28 @@ public class ZookeeperRegister implements Register {
 	}
 
 	public void subscribe(String path, final ServerListener listener) {
-		lock.lock();
-		try {
-			ConcurrentHashMap<ServerListener, IZkChildListener> listeners = serverListeners.get(path);
-			if (listeners == null) {
-				serverListeners.putIfAbsent(path, new ConcurrentHashMap<ServerListener, IZkChildListener>());
-				listeners = serverListeners.get(path);
-			}
-			IZkChildListener childListener = listeners.get(listener);
-			if (childListener == null) {
-				listeners.putIfAbsent(listener, new IZkChildListener() {
-					public void handleChildChange(String parent, List<String> children) throws Exception {
-						String path = children.get(0);
-						String seq = path.replace(parent + "/", "");
-						listener.onMaster(new Event(EventType.MASTER, seq, parent));
-					}
-				});
-				client.createPersistent(path, true);
-				String seq = createNode(path);
-				listener.onCreated(new Event(EventType.CREATED, seq, path));
-				if (isMaster(seq, path, client.getChildren(path))) {
-					listener.onMaster(new Event(EventType.MASTER, seq, path));
+		ConcurrentHashMap<ServerListener, IZkChildListener> listeners = serverListeners.get(path);
+		if (listeners == null) {
+			serverListeners.putIfAbsent(path, new ConcurrentHashMap<ServerListener, IZkChildListener>());
+			listeners = serverListeners.get(path);
+		}
+		IZkChildListener childListener = listeners.get(listener);
+		if (childListener == null) {
+			listeners.putIfAbsent(listener, new IZkChildListener() {
+				public void handleChildChange(String parent, List<String> children) throws Exception {
+					String path = children.get(0);
+					String seq = path.replace(parent + "/", "");
+					listener.onMaster(new Event(EventType.MASTER, seq, parent));
 				}
-				childListener = listeners.get(listener);
-				client.subscribeChildChanges(path, childListener);
+			});
+			client.createPersistent(path, true);
+			String seq = createNode(path);
+			listener.onCreated(new Event(EventType.CREATED, seq, path));
+			if (isMaster(seq, path, client.getChildren(path))) {
+				listener.onMaster(new Event(EventType.MASTER, seq, path));
 			}
-		} finally {
-			lock.unlock();
+			childListener = listeners.get(listener);
+			client.subscribeChildChanges(path, childListener);
 		}
 	}
 
